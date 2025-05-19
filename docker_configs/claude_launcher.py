@@ -3,7 +3,10 @@ import sys
 import os
 
 # Force flush to ensure visibility in docker output
-print(f"INFO: Starting {os.path.abspath(sys.argv[0])} with arguments: {' '.join(sys.argv)}", file=sys.stderr, flush=True)
+# Send to both stderr and stdout so it is always visible
+msg = f"INFO: Starting {os.path.abspath(sys.argv[0])} with arguments: {' '.join(sys.argv)}"
+print(msg, file=sys.stderr, flush=True)
+print(msg, flush=True)
 
 """
 Claude Launcher Script
