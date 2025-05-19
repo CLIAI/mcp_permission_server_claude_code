@@ -190,20 +190,26 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         print(f"$ {' '.join(docker_cmd)}")
         # Use a new list for the command without TTY flags
         docker_cmd_no_tty = docker_cmd.copy()
-        # Find and remove -it or -i flags (they could be separate items or combined)
+        # Replace '-it' with '-i' to keep STDIN open without forcing a TTY.
+        # Remove the standalone '-t' flag if present.
         for i, arg in enumerate(docker_cmd_no_tty):
-            if arg in ["-it", "-i", "-t"]:
+            if arg == "-it":
+                docker_cmd_no_tty[i] = "-i"
+            elif arg == "-t":
                 docker_cmd_no_tty[i] = None
-        # Remove None values from the list
+        # Remove any None values from the list
         docker_cmd_no_tty = [arg for arg in docker_cmd_no_tty if arg is not None]
+        if debug:
+            print(f"Running command (no TTY): {' '.join(docker_cmd_no_tty)}")
         
         # Use subprocess.Popen to ensure we get real-time output
         process = subprocess.Popen(
             docker_cmd_no_tty,
             bufsize=0,  # Unbuffered output
             universal_newlines=True,  # Text mode
-            stdout=sys.stdout,  # Direct to stdout
-            stderr=sys.stderr   # Direct to stderr
+            stdout=sys.stdout,   # Direct to stdout
+            stderr=sys.stderr,   # Direct to stderr
+            stdin=sys.stdin      # Keep stdin attached so output is flushed promptly
         )
         # Wait for process to complete
         returncode = process.wait()
