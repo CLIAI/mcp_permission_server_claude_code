@@ -31,16 +31,21 @@ def parse_args():
                         help='Skip MCP tool setup and just run Claude Code with the script')
     parser.add_argument('--show-docker-logs', action='store_true',
                         help='Show Docker build logs (can be verbose)')
+    parser.add_argument('--run-directly', action='store_true',
+                        help='Run the script directly without Docker')
     
     return parser.parse_args()
 
 def check_api_key():
     """Check if the ANTHROPIC_API_KEY environment variable is set."""
-    if 'ANTHROPIC_API_KEY' not in os.environ:
+    if 'ANTHROPIC_API_KEY' not in os.environ or not os.environ['ANTHROPIC_API_KEY'].strip():
         print("Error: ANTHROPIC_API_KEY environment variable is not set")
         print("You must set your Anthropic API key to use Claude Code")
         print("Example: export ANTHROPIC_API_KEY=your_api_key_here")
         return False
+    
+    # Don't print the actual key, just confirm it's set
+    print("API key is set and ready to use")
     return True
 
 def build_docker_image(debug=False, show_logs=False):
@@ -134,6 +139,16 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         # Just run the script with Claude Code
         cmd_in_container = f"claude-code {claude_args} --dangerously-skip-permissions {target_path}"
     
+    # Check if the Docker image exists
+    check_image_cmd = ["docker", "image", "inspect", "claude-code-container"]
+    image_exists = subprocess.run(check_image_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+    
+    if not image_exists:
+        print("Docker image 'claude-code-container' does not exist. Building it now...")
+        if not build_docker_image(debug, False):
+            print("Failed to build Docker image. Please check the error messages above.")
+            return False
+    
     # Build the docker run command
     docker_cmd = [
         "docker", "run", 
@@ -143,7 +158,11 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
     ]
     
     if interactive:
-        docker_cmd.extend(["-it"])
+        # Make sure we're in a TTY
+        if sys.stdin.isatty() and sys.stdout.isatty():
+            docker_cmd.extend(["-it"])
+        else:
+            print("Warning: Not running in a TTY, disabling interactive mode")
     
     docker_cmd.extend(["claude-code-container", "/bin/bash", "-c", cmd_in_container])
     
@@ -160,11 +179,51 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         print("\nOperation cancelled by user")
         return False
 
+def run_directly(script_file, debug=False):
+    """Run the script directly with Bash as a fallback."""
+    script_path = os.path.abspath(script_file)
+    
+    if not os.path.exists(script_path):
+        print(f"Error: Path not found: {script_path}")
+        return False
+    
+    if os.path.isfile(script_path):
+        # Make sure it's executable
+        if not os.access(script_path, os.X_OK):
+            try:
+                os.chmod(script_path, 0o755)
+                if debug:
+                    print(f"Made script executable: {script_path}")
+            except Exception as e:
+                print(f"Warning: Could not make script executable: {e}")
+        
+        # Run the script directly
+        print(f"Running script directly: {script_path}")
+        try:
+            subprocess.run([script_path], check=True)
+            return True
+        except subprocess.CalledProcessError as e:
+            print(f"Error running script: {e}")
+            return False
+    elif os.path.isdir(script_path):
+        print(f"The path is a directory: {script_path}")
+        print("Please specify a single executable file to run directly.")
+        return False
+    else:
+        print(f"Error: Path is neither a file nor a directory: {script_path}")
+        return False
+
 def main():
     args = parse_args()
     
     if not check_api_key():
         return 1
+    
+    if args.run_directly:
+        if run_directly(args.script_file, args.debug):
+            return 0
+        else:
+            return 1
     
     if not args.skip_build:
         if not build_docker_image(args.debug, args.show_docker_logs):
