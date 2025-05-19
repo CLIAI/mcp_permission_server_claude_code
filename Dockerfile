@@ -72,7 +72,8 @@ RUN curl -sSf https://astral.sh/uv/install.sh | sh
 # Install Claude Code CLI globally with npm
 # This step is done late in the build process to utilize Docker caching
 # If Claude Code CLI package updates, only this layer and subsequent ones will rebuild
-RUN npm install -g @anthropic-ai/claude-code
+RUN npm install -g @anthropic-ai/claude-code && \
+    ln -sf $(which claude-code) /usr/local/bin/claude
 
 # Create workspace and MCP tools directories
 RUN mkdir -p ${HOME}/workspace && \
