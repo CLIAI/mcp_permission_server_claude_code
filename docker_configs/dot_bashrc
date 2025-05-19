@@ -36,19 +36,21 @@ export CLAUDE_CODE_WORKSPACE="${HOME}/workspace"
 # Create workspace directory if it doesn't exist
 mkdir -p ${CLAUDE_CODE_WORKSPACE}
 
-# Function to run Claude Code with mounted script
-run_claude_code_script() {
+# Function to run Claude with mounted script
+run_claude_script() {
     if [ -z "$1" ]; then
-        echo "Usage: run_claude_code_script <script_path>"
+        echo "Usage: run_claude_script <script_path> [prompt]"
         return 1
     fi
     
-    # Run Claude Code with the specified script
-    claude-code --dangerously-skip-permissions "$1"
+    PROMPT=${2:-"write and compile and run helloworld in c++"}
+    
+    # Run Claude with the specified script and prompt
+    claude --dangerously-skip-permissions --print "$PROMPT" "$1"
 }
 
 # Alias for the function
-alias ccs='run_claude_code_script'
+alias ccs='run_claude_script'
 
-echo "Claude Code Docker Environment initialized"
-echo "Use 'ccs <script_path>' to run a script with Claude Code"
+echo "Claude Permissions MCP Testing Environment initialized"
+echo "Use 'ccs <script_path> [prompt]' to run a script with Claude"

@@ -1,8 +1,8 @@
 # Makefile for Claude Code Docker environment
 
 # Variables
-IMAGE_NAME = claude-code-container
-CONTAINER_NAME = claude-code
+IMAGE_NAME = claude-code-permissionsmcp-testing
+CONTAINER_NAME = claude-code-permissionsmcp-testing
 DOCKER_FILE = Dockerfile
 
 # Default target when 'make' is run without arguments

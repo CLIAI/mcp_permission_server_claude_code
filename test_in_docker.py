@@ -68,16 +68,9 @@ def build_docker_image(debug=False, show_logs=False):
         print(f"Running: {' '.join(cmd)}")
     
     try:
-        if show_logs:
-            # Show full output
-            subprocess.run(cmd, check=True)
-        else:
-            # Suppress output unless there's an error
-            print("Building Docker image (this may take a while)...")
-            result = subprocess.run(cmd, check=False, capture_output=True, text=True)
-            if result.returncode != 0:
-                print(f"Error building Docker image: {result.stderr}")
-                return False
+        # Always show output in terminal
+        print("Building Docker image (this may take a while)...")
+        subprocess.run(cmd, check=True, stdout=None, stderr=None)
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error building Docker image: {e}")
@@ -138,8 +131,8 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
     escaped_prompt = prompt.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
     
     if skip_tool_setup:
-        # Skip tool setup and just run Claude Code with the script
-        cmd_in_container = f'claude-code {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
+        # Skip tool setup and just run Claude with the script
+        cmd_in_container = f'claude {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
     elif tool_name or server_name != 'mcp_permission_server':
         # If custom tool or server name is specified, use the setup script
         tool_args = []
@@ -150,18 +143,18 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         
         setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)} --debug"
         full_tool_name = f"{server_name}__{tool_name or Path(script_file).stem.lower().replace(' ', '_')}"
-        run_cmd = f'claude-code {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name} --print "{escaped_prompt}"'
+        run_cmd = f'claude {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name} --print "{escaped_prompt}"'
         cmd_in_container = f"{setup_cmd} && {run_cmd}"
     else:
-        # Just run the script with Claude Code
-        cmd_in_container = f'claude-code {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
+        # Just run the script with Claude
+        cmd_in_container = f'claude {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
     
     # Check if the Docker image exists
-    check_image_cmd = ["docker", "image", "inspect", "claude-code-container"]
+    check_image_cmd = ["docker", "image", "inspect", "claude-code-permissionsmcp-testing"]
     image_exists = subprocess.run(check_image_cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
     
     if not image_exists:
-        print("Docker image 'claude-code-container' does not exist. Building it now...")
+        print("Docker image 'claude-code-permissionsmcp-testing' does not exist. Building it now...")
         if not build_docker_image(debug, False):
             print("Failed to build Docker image. Please check the error messages above.")
             return False
@@ -181,14 +174,15 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         else:
             print("Warning: Not running in a TTY, disabling interactive mode")
     
-    docker_cmd.extend(["claude-code-container", "/bin/bash", "-c", cmd_in_container])
+    docker_cmd.extend(["claude-code-permissionsmcp-testing", "/bin/bash", "-c", cmd_in_container])
     
     if debug:
         print(f"Running command: {' '.join(docker_cmd)}")
     
     try:
         print(f"$ {' '.join(docker_cmd)}")
-        subprocess.run(docker_cmd)
+        # Use subprocess.run with stdout and stderr set to None to ensure output is visible in terminal
+        subprocess.run(docker_cmd, check=True, stdout=None, stderr=None)
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error running Docker container: {e}")
@@ -219,7 +213,7 @@ def run_directly(script_file, debug=False):
         print(f"Running script directly: {script_path}")
         try:
             print(f"$ {script_path}")
-            subprocess.run([script_path], check=True)
+            subprocess.run([script_path], check=True, stdout=None, stderr=None)
             return True
         except subprocess.CalledProcessError as e:
             print(f"Error running script: {e}")

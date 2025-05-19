@@ -1,4 +1,4 @@
-# MCP Permission Server - Claude Code Environment Guide
+# MCP Permission Server - Claude CLI Environment Guide
 
 ## Repository Overview
 
@@ -62,7 +62,7 @@ When developing MCP servers:
 
 ## Environment Variables
 
-- **ANTHROPIC_API_KEY**: Required for Claude Code to function. Set this in your environment before running scripts.
+- **ANTHROPIC_API_KEY**: Required for Claude CLI to function. Set this in your environment before running scripts.
 
 ## Best Practices
 
