@@ -1,0 +1,60 @@
+#!/usr/bin/env python3
+#
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#  "mcp[cli]",
+#  "uvicorn[standard]"
+# ]
+# ///
+
+import asyncio
+import json
+import uvicorn
+from mcp.server.fastmcp import FastMCP, Context
+
+# 1. Define the server name
+SERVER_NAME = "my_permission_auth_server" # This is the identifier for the server logic
+SERVER_DISPLAY_TITLE = "My Permission Authorization Server" # For display purposes
+TOOL_NAME = "mcp_auth_tool" # The name given to our tool
+
+# 2. Initialize the MCP server
+mcp = FastMCP(SERVER_NAME)
+
+# 3. Define the MCP tool to handle permission prompts
+@mcp.tool(name=TOOL_NAME) # Tool name matches claude CLI example
+async def handle_permission_request(ctx: Context, permission_details: str) -> str:
+    await ctx.info(f"Permission request received by '{SERVER_NAME}/{ctx.tool_name}'. Details: {permission_details}")
+
+    # --- YOUR CUSTOM PERMISSION LOGIC HERE ---
+    approved = True
+    reason = "Automatically approved by mcp_auth_tool (Hello World Example)"
+    # --- END CUSTOM LOGIC ---
+
+    if approved:
+        await ctx.info(f"Permission GRANTED for request to '{SERVER_NAME}/{ctx.tool_name}': {reason}")
+    else:
+        await ctx.warning(f"Permission DENIED for request to '{SERVER_NAME}/{ctx.tool_name}': {reason}")
+
+    response = {"approved": approved, "reason": reason}
+    return json.dumps(response)
+
+# 4. Main execution block to run the server with Uvicorn
+if __name__ == "__main__":
+    host = "127.0.0.1"
+    port = 8777 # Choose an available port for this server
+
+    print(f"Starting MCP Server: '{SERVER_DISPLAY_TITLE}' (ID: '{SERVER_NAME}')")
+    # Simplified confirmation: We trust the decorator registers the tool.
+    # The server's routing mechanisms (handled by FastMCP/FastAPI) will expose it.
+    print(f"Tool '{TOOL_NAME}' is defined and should be available via the MCP server.")
+    print(f"Server will be available at http://{host}:{port}")
+    print(f"To use with Claude CLI (ensure this server is running):")
+    print(f"1. Register the server with Claude: claude mcp add {SERVER_NAME} http://{host}:{port}")
+    print(f"2. Then, for a command requiring permission:")
+    print(f'   claude -p --permission-prompt-tool {SERVER_NAME}/{TOOL_NAME} "your query requiring permission"')
+    print(f"   (e.g., claude -p --permission-prompt-tool {SERVER_NAME}/{TOOL_NAME} \"create a file named example.txt with 'hello world'\")")
+    print("Press Ctrl+C to stop the server.")
+
+    # FastMCP is based on FastAPI, so `mcp.app` is the ASGI application.
+    uvicorn.run(mcp.app, host=host, port=port, log_level="info")

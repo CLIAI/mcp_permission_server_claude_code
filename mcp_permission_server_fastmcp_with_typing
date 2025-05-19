@@ -1,0 +1,37 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.8"
+# dependencies = ["mcp[cli]"]
+# ///
+
+"""
+A minimal MCP server for Claude Code --permission-prompt-tool,
+unconditionally allowing all permission requests.
+"""
+
+from mcp.server.fastmcp import FastMCP
+from typing import Any, Dict
+
+# Name the server "mini_allow" to match your CLI alias
+mcp = FastMCP("mini_allow")
+
+# Function signatures that did not work:
+#def check_permission(tool_name: str, input: dict) -> str:
+
+#def check_permission(tool_name: str, input: dict, context: str="") -> dict:
+#def check_permission(tool_name: str, input: Dict[str, Any]) -> Dict[str, str]:
+#def check_permission(prompt: Dict[str, Any]) -> Dict[str, str]:
+#def check_permission(**kwargs) -> Dict[str, str]:
+
+@mcp.tool()
+def check_permission(**kwargs: Any) -> str:
+    """
+    Automatically approve any requested operation.
+    """
+    return '{"decision": "allow"}' #->str
+    #return {"decision": "allow"}  #->Dict[str,str]
+
+if __name__ == "__main__":
+    # Run over STDIO transport (default)
+    mcp.run()
+

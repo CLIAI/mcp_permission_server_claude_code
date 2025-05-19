@@ -1,0 +1,49 @@
+#!/usr/bin/env -S uv run --script
+# server.py
+# Requirements: mcp[cli]>=1.2.0, httpx, python-dotenv
+
+from mcp.server.fastmcp import FastMCP
+from typing import Literal
+import logging
+import os
+
+# Initialize MCP server with permission handling
+mcp = FastMCP("Auth Server", version="1.0")
+
+@mcp.tool()
+def mcp_auth_tool(
+    operation: Literal["file_write", "command_exec", "network_access"],
+    target: str,
+    context: str
+) -> bool:
+    """Handle permission prompts from Claude Code CLI.
+    
+    Args:
+        operation: Type of operation being requested
+        target: Path/command being accessed
+        context: LLM's justification for the request
+    
+    Returns:
+        bool: True to allow, False to deny
+    """
+    logging.info(f"Permission request: {operation} on {target}")
+    logging.info(f"LLM justification: {context}")
+    return True
+    
+    # Example security logic - customize this
+    if operation == "file_write" and not target.startswith("/tmp/"):
+        #print("⚠️ Blocking write to protected path:", target)
+        return False
+        
+    return True  # Default allow
+
+if __name__ == "__main__":
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    
+    # Start server
+    mcp.run()
+

@@ -1,0 +1,65 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.8"
+# dependencies = ["mcp[cli]"] # Provides FastMCP
+# ///
+"""
+A minimal FastMCP server for Claude Code --permission-prompt-tool.
+- Signature now directly accepts 'prompt' and 'context' from tool_use.input.
+- Correctly returns a JSON string: {"decision": "allow"}.
+"""
+import json
+import sys
+import logging
+import os
+
+# Configure logging to stderr for debugging the tool itself.
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.INFO,
+    format='%(asctime)s %(name)s[%(levelname)s]: %(message)s (%(filename)s:%(lineno)d PID:%(process)d)'
+)
+logger = logging.getLogger("gemini_allow")
+
+from mcp.server.fastmcp import FastMCP
+
+# The server_id for FastMCP. Claude knows this server by the name "mini_allow"
+# (from .mcp.json) which points to this script.
+mcp = FastMCP("gemini_allow")
+
+@mcp.tool() # Tool name by default is "check_permission"
+def check_permission(tool_name: str, prompt: str, context: str = None) -> str:
+    """
+    Automatically approve any requested operation.
+    - 'tool_name': Injected by FastMCP, indicating the name of this tool.
+    - 'prompt': Populated from the 'prompt' field of the 'input' object in the tool_use event.
+    - 'context': Populated from the 'context' field of the 'input' object in the tool_use event.
+                 Made optional with a default in case it's not always provided.
+    """
+    logger.info(f"Tool '{tool_name}' invoked in FastMCP server '{mcp.name}'.")
+    logger.info(f"Received argument 'prompt': \"{prompt}\" (type: {type(prompt)})")
+    logger.info(f"Received argument 'context': \"{context}\" (type: {type(context)})")
+
+    # Minimalistic logic: always allow
+    decision = "allow"
+    reason = "Automatically allowed by mini_allow_fastmcp_final tool."
+
+    response_payload = {"decision": decision, "reason": reason} # Including reason for good measure
+    json_response_string = json.dumps(response_payload)
+
+    logger.info(f"Returning JSON string response for Claude: {json_response_string}")
+    return json_response_string
+
+if __name__ == "__main__":
+    logger.info(f"Starting mini_allow_fastmcp_final FastMCP server (configured for STDIO). PID: {os.getpid()}")
+    logger.info(f"Claude identifies this server as 'mini_allow' (from .mcp.json).")
+    logger.info(f"Tool 'check_permission' is registered.")
+
+    # mcp.run() handles the MCP message loop over sys.stdin/sys.stdout
+    # when the 'type' is 'stdio' in the .mcp.json server configuration.
+    try:
+        mcp.run()
+    except Exception as e:
+        logger.error(f"FastMCP server '{mcp.name}' crashed: {e}", exc_info=True)
+    finally:
+        logger.info(f"mini_allow_fastmcp_final FastMCP server '{mcp.name}' finished. PID: {os.getpid()}")

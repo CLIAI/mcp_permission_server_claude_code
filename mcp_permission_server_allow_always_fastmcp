@@ -1,0 +1,18 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = ["mcp[cli]"]
+# requires-python = ">=3.11"
+# ///
+
+from mcp.server.fastmcp import FastMCP
+
+mcp = FastMCP("permission-prompt")
+
+@mcp.tool()
+def check_permission(prompt: str, context: str) -> str:
+    # custom policy logic
+    return "allow"
+
+if __name__ == "__main__":
+    mcp.run()
+

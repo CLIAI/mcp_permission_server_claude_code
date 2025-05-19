@@ -1,0 +1,109 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# requires-python = ">=3.8"
+# dependencies = [
+#  "mcp[cli]"  # Provides FastMCP and its server running capabilities
+# ]
+# ///
+
+import asyncio
+import json
+from mcp.server.fastmcp import FastMCP, Context # Removed 'tool' from here as @mcp.tool is used
+
+# 1. Define the server name and tool name
+SERVER_NAME = "my_permission_auth_server"
+TOOL_NAME = "check_permission" # As suggested in the requirements document
+SERVER_DISPLAY_TITLE = "My Permission Authorization Server"
+
+# 2. Initialize the MCP server
+mcp = FastMCP(SERVER_NAME)
+
+# 3. Define the MCP tool to handle permission prompts
+# This tool will be invoked by Claude Code when it needs permission
+# and is specified using --permission-prompt-tool.
+@mcp.tool(name=TOOL_NAME)
+async def check_permission_tool(ctx: Context, input_query_json: str) -> str:
+    """
+    Handles permission requests from Claude Code.
+
+    Args:
+        ctx: The MCP Context object.
+        input_query_json: A JSON string from Claude Code describing the permission needed.
+                          Example: {"prompt": "Allow access to sensitive data?", "context": "Sensitive operation detected."}
+
+    Returns:
+        A JSON string indicating the decision.
+        Example: {"decision": "allow"} or {"decision": "deny"}
+    """
+    await ctx.info(f"'{SERVER_NAME}/{ctx.tool_name}' received input: {input_query_json}")
+
+    try:
+        # Parse the input JSON query
+        query_data = json.loads(input_query_json)
+        prompt_message = query_data.get("prompt", "No prompt provided.")
+        prompt_context = query_data.get("context", "No context provided.")
+
+        await ctx.info(f"Parsed prompt: '{prompt_message}', Context: '{prompt_context}'")
+
+        # --- YOUR CUSTOM PERMISSION LOGIC GOES HERE ---
+        # This is where you implement the rules to decide whether to "allow" or "deny".
+        # For this example, let's implement a simple logic:
+        # - If the prompt contains "sensitive data" or "execute", deny.
+        # - Otherwise, allow.
+        
+        decision = "allow" # Default to allow
+        reason_for_decision = "Default policy: allow."
+
+        if "sensitive data" in prompt_message.lower() or "execute" in prompt_message.lower():
+            decision = "deny"
+            reason_for_decision = f"Policy: Denied due to sensitive keyword in prompt ('{prompt_message}')."
+        elif "debug allow" in prompt_message.lower(): # Example of a specific override
+            decision = "allow"
+            reason_for_decision = "Policy: Allowed due to debug override."
+        
+        # Add more sophisticated rules as needed based on `prompt_message` and `prompt_context`.
+
+    except json.JSONDecodeError as e:
+        await ctx.error(f"Failed to parse input JSON: {e}. Input was: {input_query_json}")
+        decision = "deny" # Deny if input is malformed
+        reason_for_decision = "Error: Malformed input JSON."
+    except Exception as e:
+        await ctx.error(f"An unexpected error occurred in permission logic: {e}")
+        decision = "deny"
+        reason_for_decision = f"Error: Internal tool error ({type(e).__name__})."
+
+    # Construct the output JSON
+    output_response = {"decision": decision}
+    output_json_string = json.dumps(output_response)
+
+    if decision == "allow":
+        await ctx.info(f"Decision: {decision.upper()}. Reason: {reason_for_decision}. Sending: {output_json_string}")
+    else:
+        await ctx.warning(f"Decision: {decision.upper()}. Reason: {reason_for_decision}. Sending: {output_json_string}")
+        
+    return output_json_string
+
+# 4. Main execution block to run the server
+if __name__ == "__main__":
+    host_for_display = "127.0.0.1" # Default/common host
+    port_for_display = "8000"      # Default FastMCP/FastAPI port, or as configured by mcp.run()
+
+    print(f"Starting MCP Server: '{SERVER_DISPLAY_TITLE}' (ID: '{SERVER_NAME}')")
+    print(f"Permission tool '{TOOL_NAME}' is defined.")
+    print(f"Server will attempt to run (typically on http://{host_for_display}:{port_for_display} or as per defaults by mcp.run()).")
+    print("Expected input to the tool (JSON string): e.g., {\"prompt\": \"<message>\", \"context\": \"<details>\"}")
+    print("Expected output from the tool (JSON string): e.g., {\"decision\": \"allow\"} or {\"decision\": \"deny\"}")
+    print("-" * 70)
+    print(f"To use with Claude CLI (ensure this server is running and accessible):")
+    print(f"1. Register the server with Claude (adjust URL if server runs on a different host/port):")
+    print(f"   claude mcp add {SERVER_NAME} http://{host_for_display}:{port_for_display}")
+    print(f"2. Then, for a command where Claude might seek permission:")
+    print(f'   claude -p --permission-prompt-tool {SERVER_NAME}/{TOOL_NAME} "Your query to Claude that might require permissions"')
+    print(f"   Example: claude -p --permission-prompt-tool {SERVER_NAME}/{TOOL_NAME} \"Write 'hello' to a file named output.txt\"")
+    print("-" * 70)
+    print("Press Ctrl+C to stop the server.")
+    
+    # Use mcp.run() as indicated by the MCP SDK documentation for direct execution.
+    # This method starts the ASGI server (e.g., Uvicorn) internally.
+    # It might use default host/port or allow configuration via environment variables.
+    mcp.run()

@@ -1,0 +1,31 @@
+#!/usr/bin/env -S uv run --script
+# /// script
+# dependencies = ["mcp[cli]"]
+# ///
+
+"""
+Permission-prompt MCP server for Claude Code.
+Automatically approves or denies operations based on a simple policy.
+"""
+
+from mcp.server.fastmcp import FastMCP
+
+# Name your server "permission-prompt"
+mcp = FastMCP("permission-prompt")
+
+@mcp.tool(description="Handle permission prompts for Claude Code")
+def permission_prompt(operation: str) -> bool:
+    """
+    Approve or deny the requested operation.
+    Customize this with env vars, a policy file, or interactive logic.
+    """
+    op = operation.lower()
+    # Example policy: allow read-only ops, deny writes
+    if any(keyword in op for keyword in ("read", "ls", "grep")):
+        return True
+    return False
+
+if __name__ == "__main__":
+    # Default transport is stdio
+    mcp.run()
+
