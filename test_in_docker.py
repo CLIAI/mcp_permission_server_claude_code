@@ -51,6 +51,7 @@ def check_api_key():
 def build_docker_image(debug=False, show_logs=False):
     """Build the Docker image using make."""
     cmd = ["make", "build"]
+    print(f"$ {' '.join(cmd)}")
     if debug:
         print(f"Running: {' '.join(cmd)}")
     
@@ -170,6 +171,7 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         print(f"Running command: {' '.join(docker_cmd)}")
     
     try:
+        print(f"$ {' '.join(docker_cmd)}")
         subprocess.run(docker_cmd)
         return True
     except subprocess.CalledProcessError as e:
@@ -200,6 +202,7 @@ def run_directly(script_file, debug=False):
         # Run the script directly
         print(f"Running script directly: {script_path}")
         try:
+            print(f"$ {script_path}")
             subprocess.run([script_path], check=True)
             return True
         except subprocess.CalledProcessError as e:
