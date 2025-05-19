@@ -171,7 +171,7 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         "docker", "run", 
         "--rm",
         "-v", mount_arg,
-        "-e", f"ANTHROPIC_API_KEY={os.environ.get('ANTHROPIC_API_KEY', '')}",
+        "-e", "ANTHROPIC_API_KEY",
     ]
     
     if interactive:

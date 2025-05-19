@@ -26,7 +26,7 @@ run:
 	fi
 	docker run --rm -it \
 		-v $(shell pwd):/home/coder/workspace \
-		-e ANTHROPIC_API_KEY=$(ANTHROPIC_API_KEY) \
+		-e ANTHROPIC_API_KEY \
 		--name $(CONTAINER_NAME) \
 		$(IMAGE_NAME)
 
@@ -41,7 +41,7 @@ run-daemon:
 	fi
 	docker run -d \
 		-v $(shell pwd):/home/coder/workspace \
-		-e ANTHROPIC_API_KEY=$(ANTHROPIC_API_KEY) \
+		-e ANTHROPIC_API_KEY \
 		--name $(CONTAINER_NAME) \
 		$(IMAGE_NAME) "tail -f /dev/null"
 

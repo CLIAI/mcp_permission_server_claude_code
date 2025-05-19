@@ -77,6 +77,11 @@ When developing MCP servers:
    - Move to Docker testing for more realistic environments
    - Use the `--interactive` flag for debugging inside the container
 
+5. **Environment Variables in Docker**:
+   - When passing environment variables to Docker, use just the variable name (`-e VARIABLE_NAME`) instead of specifying the value (`-e VARIABLE_NAME=value`)
+   - This approach prevents sensitive values from appearing in logs and allows Docker to inherit values from the host environment
+   - Example: `docker run -e ANTHROPIC_API_KEY ...` not `docker run -e ANTHROPIC_API_KEY=sk_...`
+
 ## Known Issues
 
 1. **Flag Behavior**: The `--prompt-permission-tool` flag may require the tool name to include both the server name and tool name (e.g., `mcp__server_name__tool_name`). Check server error messages for the expected format.
