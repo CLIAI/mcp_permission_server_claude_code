@@ -94,14 +94,14 @@ def run_command(cmd, logger, cwd=None):
         err_line = process.stderr.readline()
 
         if out_line:
-            print(out_line, end="")
+            print(out_line, end="", flush=True)
         if err_line:
             logger.error(err_line.rstrip())
 
         if process.poll() is not None:
             # flush remaining
             for line in process.stdout:
-                print(line, end="")
+                print(line, end="", flush=True)
             for line in process.stderr:
                 logger.error(line.rstrip())
             break
@@ -245,8 +245,20 @@ def run_claude(script_path, prompt, add_mcp, tool_name, server_name, logger,
         # 2. Show MCP tool list to verify registration
         #
         list_cmd = [claude_path, "mcp", "list"]
-        if run_command(list_cmd, logger) != 0:
+        logger.info(f"$ {' '.join(list_cmd)}")
+
+        try:
+            list_output = subprocess.check_output(list_cmd, text=True)
+            # stream the captured output
+            print(list_output, end="", flush=True)
+        except subprocess.CalledProcessError as e:
             logger.error("Failed to list MCP tools")
+            print(e.output, end="", flush=True)
+            return 1
+
+        # verify that our tool is now registered
+        if full_tool_name not in list_output:
+            logger.error(f"Tool {full_tool_name} not present on `claude mcp list` output – aborting.")
             return 1
 
     #
