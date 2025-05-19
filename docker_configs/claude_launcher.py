@@ -220,21 +220,20 @@ def add_mcp_tool(script_path, tool_name, server_name, logger):
 def run_claude(script_path, prompt, add_mcp, tool_name, server_name, logger, 
                claude_path="claude", claude_args=""):
     """Run Claude with the specified script and prompt."""
-    # Determine tool name and full MCP identifier
-    if not tool_name:
-        derived_tool_name = Path(script_path).stem.lower().replace(' ', '_')
-    else:
-        derived_tool_name = tool_name
-    full_tool_name = f"{server_name}__{derived_tool_name}"
+
+    # Always use "permissiontool" as the tool name for MCP registration and invocation
+    mcp_tool_name = "permissiontool"
 
     #
     # 1. When requested, register the script as MCP tool
     #
     if add_mcp:
+        # If there are extra parameters after the script path, include them in the registration
+        # (This implementation assumes script_path may already include parameters if needed)
         add_cmd = [
             claude_path, "mcp", "add",
             "--transport", "stdio",
-            full_tool_name,
+            mcp_tool_name,
             script_path,
         ]
         if run_command(add_cmd, logger) != 0:
@@ -257,8 +256,8 @@ def run_claude(script_path, prompt, add_mcp, tool_name, server_name, logger,
             return 1
 
         # verify that our tool is now registered
-        if full_tool_name not in list_output:
-            logger.error(f"Tool {full_tool_name} not present on `claude mcp list` output – aborting.")
+        if mcp_tool_name not in list_output:
+            logger.error(f"Tool {mcp_tool_name} not present on `claude mcp list` output – aborting.")
             return 1
 
     #
@@ -268,7 +267,7 @@ def run_claude(script_path, prompt, add_mcp, tool_name, server_name, logger,
         cmd = [
             claude_path,
             "--dangerously-skip-permissions",
-            "--prompt-permission-tool", full_tool_name,
+            "--prompt-permission-tool", mcp_tool_name,
             "--print", prompt,
         ]
     else:
