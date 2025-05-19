@@ -37,6 +37,8 @@ def parse_args():
                         help='Server name for the MCP tool (default: mcp_permission_server)')
     parser.add_argument('--debug', action='store_true', help='Enable debug output')
     parser.add_argument('--skip-build', action='store_true', help='Skip building the Docker image')
+    parser.add_argument('--time-limit', type=int, default=300,
+                        help='Maximum execution time for the Docker container in seconds (0 = no limit, default 300)')
     parser.add_argument('--interactive', '-i', action='store_true', help='Run in interactive mode')
     parser.add_argument('--claude-args', default='', help='Additional arguments to pass to Claude Code')
     parser.add_argument('--skip-tool-setup', action='store_true', 
@@ -78,7 +80,8 @@ def build_docker_image(debug=False, show_logs=False):
 
 def run_in_docker(script_file, prompt='write and compile and run helloworld in c++', 
                   tool_name=None, server_name='mcp_permission_server', 
-                  debug=False, interactive=False, claude_args='', skip_tool_setup=False):
+                  debug=False, interactive=False, claude_args='', skip_tool_setup=False,
+                  time_limit=0):
     """Run the script in the Docker container."""
     script_path = os.path.abspath(script_file)
     
@@ -182,6 +185,10 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         print("Warning: Not running in a TTY, some output may be buffered")
     
     docker_cmd.extend(["claude-code-permissionsmcp-testing", "/bin/bash", "-c", cmd_in_container])
+
+    # Prefix with timeout if a positive time_limit was supplied
+    if time_limit and time_limit > 0:
+        docker_cmd = ["timeout", "--kill-after=5s", f"{time_limit}s"] + docker_cmd
     
     if debug:
         print(f"Running command: {' '.join(docker_cmd)}")
@@ -203,13 +210,18 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
             print(f"Running command (no TTY): {' '.join(docker_cmd_no_tty)}")
         
         # Use subprocess.Popen to ensure we get real-time output
+        # Wrap in timeout as well (mirror docker_cmd modification)
+        final_cmd = docker_cmd_no_tty
+        if time_limit and time_limit > 0:
+            final_cmd = ["timeout", "--kill-after=5s", f"{time_limit}s"] + final_cmd
+
         process = subprocess.Popen(
-            docker_cmd_no_tty,
-            bufsize=0,  # Unbuffered output
-            universal_newlines=True,  # Text mode
-            stdout=sys.stdout,   # Direct to stdout
-            stderr=sys.stderr,   # Direct to stderr
-            stdin=sys.stdin      # Keep stdin attached so output is flushed promptly
+            final_cmd,
+            bufsize=0,               # Unbuffered output
+            universal_newlines=True, # Text mode
+            stdout=sys.stdout,       # Direct to stdout
+            stderr=sys.stderr,       # Direct to stderr
+            stdin=sys.stdin          # Keep stdin attached so output is flushed promptly
         )
         # Wait for process to complete
         returncode = process.wait()
@@ -295,7 +307,8 @@ def main():
         args.debug,
         args.interactive,
         args.claude_args,
-        skip_tool_setup=args.skip_tool_setup
+        skip_tool_setup=args.skip_tool_setup,
+        time_limit=args.time_limit
     ):
         return 1
     
