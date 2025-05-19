@@ -173,12 +173,8 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         "-e", "ANTHROPIC_API_KEY",
     ]
     
-    if interactive:
-        # Make sure we're in a TTY
-        if sys.stdin.isatty() and sys.stdout.isatty():
-            docker_cmd.extend(["-it"])
-        else:
-            print("Warning: Not running in a TTY, disabling interactive mode")
+    # Always run in interactive mode to ensure we get terminal output
+    docker_cmd.extend(["-it"])
     
     docker_cmd.extend(["claude-code-permissionsmcp-testing", "/bin/bash", "-c", cmd_in_container])
     
@@ -187,8 +183,19 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
     
     try:
         print(f"$ {' '.join(docker_cmd)}")
-        # Use subprocess.run with stdout and stderr set to None to ensure output is visible in terminal
-        subprocess.run(docker_cmd, check=True, stdout=None, stderr=None)
+        # Use subprocess.Popen to ensure we get real-time output
+        process = subprocess.Popen(
+            docker_cmd,
+            bufsize=0,  # Unbuffered output
+            universal_newlines=True,  # Text mode
+            stdout=sys.stdout,  # Direct to stdout
+            stderr=sys.stderr   # Direct to stderr
+        )
+        # Wait for process to complete
+        returncode = process.wait()
+        if returncode != 0:
+            print(f"Error: Docker command exited with code {returncode}")
+            return False
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error running Docker container: {e}")
@@ -219,7 +226,19 @@ def run_directly(script_file, debug=False):
         print(f"Running script directly: {script_path}")
         try:
             print(f"$ {script_path}")
-            subprocess.run([script_path], check=True, stdout=None, stderr=None)
+            # Use subprocess.Popen to ensure we get real-time output
+            process = subprocess.Popen(
+                [script_path],
+                bufsize=0,  # Unbuffered output
+                universal_newlines=True,  # Text mode
+                stdout=sys.stdout,  # Direct to stdout
+                stderr=sys.stderr   # Direct to stderr
+            )
+            # Wait for process to complete
+            returncode = process.wait()
+            if returncode != 0:
+                print(f"Error: Script exited with code {returncode}")
+                return False
             return True
         except subprocess.CalledProcessError as e:
             print(f"Error running script: {e}")
