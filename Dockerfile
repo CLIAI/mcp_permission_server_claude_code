@@ -17,7 +17,7 @@ ENV npm_config_prefix="${HOME}/.npm-global"
 # - python, nodejs, and rust for language support
 # - yarn and npm for JavaScript/TypeScript development
 # - For any missing packages, add them to this list in future iterations
-RUN pacman -Syu --noconfirm && \
+RUN pacman -Sy --noconfirm && \
     pacman -S --noconfirm \
     base-devel \
     git \

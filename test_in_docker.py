@@ -19,7 +19,7 @@ from pathlib import Path
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Run a script in the Claude Code Docker container')
-    parser.add_argument('script_file', help='Script file to run in the container')
+    parser.add_argument('script_file', help='Script file or directory to run in the container')
     parser.add_argument('--tool-name', help='Custom name for the MCP tool (default: derived from filename)')
     parser.add_argument('--server-name', default='mcp_permission_server', 
                         help='Server name for the MCP tool (default: mcp_permission_server)')
@@ -27,6 +27,10 @@ def parse_args():
     parser.add_argument('--skip-build', action='store_true', help='Skip building the Docker image')
     parser.add_argument('--interactive', '-i', action='store_true', help='Run in interactive mode')
     parser.add_argument('--claude-args', default='', help='Additional arguments to pass to Claude Code')
+    parser.add_argument('--skip-tool-setup', action='store_true', 
+                        help='Skip MCP tool setup and just run Claude Code with the script')
+    parser.add_argument('--show-docker-logs', action='store_true',
+                        help='Show Docker build logs (can be verbose)')
     
     return parser.parse_args()
 
@@ -39,21 +43,30 @@ def check_api_key():
         return False
     return True
 
-def build_docker_image(debug=False):
+def build_docker_image(debug=False, show_logs=False):
     """Build the Docker image using make."""
     cmd = ["make", "build"]
     if debug:
         print(f"Running: {' '.join(cmd)}")
     
     try:
-        subprocess.run(cmd, check=True)
+        if show_logs:
+            # Show full output
+            subprocess.run(cmd, check=True)
+        else:
+            # Suppress output unless there's an error
+            print("Building Docker image (this may take a while)...")
+            result = subprocess.run(cmd, check=False, capture_output=True, text=True)
+            if result.returncode != 0:
+                print(f"Error building Docker image: {result.stderr}")
+                return False
         return True
     except subprocess.CalledProcessError as e:
         print(f"Error building Docker image: {e}")
         return False
 
 def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_server', 
-                  debug=False, interactive=False, claude_args=''):
+                  debug=False, interactive=False, claude_args='', skip_tool_setup=False):
     """Run the script in the Docker container."""
     script_path = os.path.abspath(script_file)
     
@@ -102,7 +115,10 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         print(f"Using target path in container: {target_path}")
     
     # Construct the command to run inside Docker
-    if tool_name or server_name != 'mcp_permission_server':
+    if skip_tool_setup:
+        # Skip tool setup and just run Claude Code with the script
+        cmd_in_container = f"claude-code {claude_args} --dangerously-skip-permissions {target_path}"
+    elif tool_name or server_name != 'mcp_permission_server':
         # If custom tool or server name is specified, use the setup script
         tool_args = []
         if tool_name:
@@ -110,7 +126,7 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         if server_name:
             tool_args.extend(["--server-name", server_name])
         
-        setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)}"
+        setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)} --debug"
         full_tool_name = f"{server_name}__{tool_name or Path(script_file).stem.lower().replace(' ', '_')}"
         run_cmd = f"claude-code {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name}"
         cmd_in_container = f"{setup_cmd} && {run_cmd}"
@@ -151,7 +167,7 @@ def main():
         return 1
     
     if not args.skip_build:
-        if not build_docker_image(args.debug):
+        if not build_docker_image(args.debug, args.show_docker_logs):
             return 1
     
     if not run_in_docker(
@@ -160,7 +176,8 @@ def main():
         args.server_name, 
         args.debug,
         args.interactive,
-        args.claude_args
+        args.claude_args,
+        skip_tool_setup=args.skip_tool_setup
     ):
         return 1
     
