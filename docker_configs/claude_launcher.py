@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import sys
+import os
 
-print(f"INFO: Starting {sys.argv[0]} with arguments: {' '.join(sys.argv)}", file=sys.stderr)
+# Force flush to ensure visibility in docker output
+print(f"INFO: Starting {os.path.abspath(sys.argv[0])} with arguments: {' '.join(sys.argv)}", file=sys.stderr, flush=True)
 
 """
 Claude Launcher Script
