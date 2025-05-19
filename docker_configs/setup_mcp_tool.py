@@ -38,9 +38,26 @@ def create_mcp_tool(script_path, tool_name, server_name, debug=False):
         print(f"Error: Script not found: {script_path}")
         return False
     
+    # Check script content and file type
+    try:
+        with open(script_path, 'r', encoding='utf-8', errors='ignore') as f:
+            first_line = f.readline().strip()
+            if debug:
+                print(f"First line of script: {first_line}")
+                file_type = subprocess.check_output(['file', script_path]).decode('utf-8').strip()
+                print(f"File type: {file_type}")
+    except Exception as e:
+        if debug:
+            print(f"Warning: Could not read first line of script: {e}")
+    
     # Make script executable if it's not already
     if not os.access(script_path, os.X_OK):
-        os.chmod(script_path, 0o755)
+        try:
+            os.chmod(script_path, 0o755)
+            if debug:
+                print(f"Made script executable: {script_path}")
+        except Exception as e:
+            print(f"Warning: Could not make script executable: {e}")
     
     # Derive tool name if not provided
     if not tool_name:
@@ -56,7 +73,15 @@ def create_mcp_tool(script_path, tool_name, server_name, debug=False):
     # Create symlink to the script in a predictable location
     home_dir = os.path.expanduser("~")
     mcp_tools_dir = os.path.join(home_dir, ".claude-code", "mcp_tools")
-    os.makedirs(mcp_tools_dir, exist_ok=True)
+    
+    try:
+        os.makedirs(mcp_tools_dir, exist_ok=True)
+        if debug:
+            print(f"Created MCP tools directory: {mcp_tools_dir}")
+            print(f"Directory contents: {os.listdir(mcp_tools_dir) if os.path.exists(mcp_tools_dir) else 'None'}")
+    except Exception as e:
+        print(f"Error creating MCP tools directory: {e}")
+        return False
     
     # The target path for the symlink
     target_path = os.path.join(mcp_tools_dir, full_tool_name)
@@ -64,13 +89,29 @@ def create_mcp_tool(script_path, tool_name, server_name, debug=False):
     # Remove existing symlink if it exists
     if os.path.exists(target_path):
         if os.path.islink(target_path):
-            os.unlink(target_path)
+            try:
+                os.unlink(target_path)
+                if debug:
+                    print(f"Removed existing symlink: {target_path}")
+            except Exception as e:
+                print(f"Error removing existing symlink: {e}")
+                return False
         else:
             print(f"Error: {target_path} exists and is not a symlink")
             return False
     
     # Create the symlink
-    os.symlink(script_path, target_path)
+    try:
+        os.symlink(script_path, target_path)
+        if debug:
+            print(f"Created symlink: {target_path} -> {script_path}")
+            if os.path.exists(target_path):
+                print(f"Symlink exists and points to: {os.readlink(target_path)}")
+            else:
+                print(f"Warning: Symlink was not created properly")
+    except Exception as e:
+        print(f"Error creating symlink: {e}")
+        return False
     
     print(f"Successfully registered MCP tool: {full_tool_name}")
     print(f"To use in Claude Code: '--prompt-permission-tool={full_tool_name}'")
@@ -86,14 +127,30 @@ def main():
     parser = create_parser()
     args = parser.parse_args()
     
-    success = create_mcp_tool(
-        args.script_path, 
-        args.tool_name, 
-        args.server_name,
-        args.debug
-    )
+    if args.debug:
+        print(f"Script path: {args.script_path}")
+        print(f"Tool name: {args.tool_name or 'To be derived from filename'}")
+        print(f"Server name: {args.server_name}")
+        print(f"Current directory: {os.getcwd()}")
+        print(f"Home directory: {os.path.expanduser('~')}")
+        print(f"Path exists: {os.path.exists(args.script_path)}")
+        if os.path.exists(args.script_path):
+            print(f"Is file: {os.path.isfile(args.script_path)}")
+            print(f"Is executable: {os.access(args.script_path, os.X_OK)}")
     
-    return 0 if success else 1
+    try:
+        success = create_mcp_tool(
+            args.script_path, 
+            args.tool_name, 
+            args.server_name,
+            args.debug
+        )
+        return 0 if success else 1
+    except Exception as e:
+        print(f"Error during MCP tool creation: {e}")
+        import traceback
+        traceback.print_exc()
+        return 1
 
 if __name__ == "__main__":
     sys.exit(main())

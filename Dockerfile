@@ -39,12 +39,19 @@ RUN pacman -Syu --noconfirm && \
     which \
     net-tools \
     procps-ng \
-    sudo
+    sudo \
+    glibc
+
+# Set up locale
+RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
+    locale-gen
 
 # Create a non-root user for running Claude Code
 RUN useradd -m -s /bin/bash coder && \
     echo "coder ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/coder && \
-    chmod 0440 /etc/sudoers.d/coder
+    chmod 0440 /etc/sudoers.d/coder && \
+    mkdir -p /opt/claude-code && \
+    chown coder:coder /opt/claude-code
 
 # Switch to the non-root user for the remaining steps
 USER coder
@@ -67,14 +74,14 @@ RUN curl -sSf https://astral.sh/uv/install.sh | sh
 # If Claude Code package updates, only this layer and subsequent ones will rebuild
 RUN npm install -g @anthropic-ai/claude-code
 
-# Create workspace directory
-RUN mkdir -p ${HOME}/workspace
+# Create workspace and MCP tools directories
+RUN mkdir -p ${HOME}/workspace && \
+    mkdir -p ${HOME}/.claude-code/mcp_tools
 
 # Copy dot_bashrc from host to container
 COPY --chown=coder:coder docker_configs/dot_bashrc ${HOME}/.bashrc
 
 # Copy MCP tool setup script
-RUN mkdir -p /opt/claude-code
 COPY --chown=coder:coder docker_configs/setup_mcp_tool.py /opt/claude-code/
 
 # Set entrypoint and default command

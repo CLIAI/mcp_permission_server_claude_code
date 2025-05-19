@@ -56,15 +56,50 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
                   debug=False, interactive=False, claude_args=''):
     """Run the script in the Docker container."""
     script_path = os.path.abspath(script_file)
-    if not os.path.isfile(script_path):
-        print(f"Error: Script file not found: {script_path}")
+    
+    # Check if the script path exists
+    if not os.path.exists(script_path):
+        print(f"Error: Path not found: {script_path}")
         return False
     
     # Get the script filename
     script_filename = os.path.basename(script_path)
     
-    # Create mount arguments
-    mount_arg = f"{script_path}:/home/coder/workspace/{script_filename}"
+    # Handle different paths based on file or directory
+    if os.path.isfile(script_path):
+        # For regular files, mount the file directly
+        mount_arg = f"{script_path}:/home/coder/workspace/{script_filename}"
+        target_path = f"/home/coder/workspace/{script_filename}"
+    elif os.path.isdir(script_path):
+        # For directories, mount the entire directory
+        mount_arg = f"{script_path}:/home/coder/workspace/{script_filename}"
+        
+        # Find executable files in the directory
+        executable_files = []
+        for root, _, files in os.walk(script_path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                if os.access(file_path, os.X_OK):
+                    # Get path relative to script_path
+                    rel_path = os.path.relpath(file_path, script_path)
+                    executable_files.append(rel_path)
+        
+        if not executable_files:
+            print(f"Error: No executable files found in directory: {script_path}")
+            print("Make sure at least one file has executable permissions.")
+            return False
+            
+        # Use the first executable file found
+        if len(executable_files) > 1:
+            print(f"Multiple executable files found in {script_path}. Using {executable_files[0]}")
+        
+        target_path = f"/home/coder/workspace/{script_filename}/{executable_files[0]}"
+    else:
+        print(f"Error: Path is neither a file nor a directory: {script_path}")
+        return False
+    
+    if debug:
+        print(f"Using target path in container: {target_path}")
     
     # Construct the command to run inside Docker
     if tool_name or server_name != 'mcp_permission_server':
@@ -75,13 +110,13 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         if server_name:
             tool_args.extend(["--server-name", server_name])
         
-        setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py /home/coder/workspace/{script_filename} {' '.join(tool_args)}"
+        setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)}"
         full_tool_name = f"{server_name}__{tool_name or Path(script_file).stem.lower().replace(' ', '_')}"
         run_cmd = f"claude-code {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name}"
         cmd_in_container = f"{setup_cmd} && {run_cmd}"
     else:
         # Just run the script with Claude Code
-        cmd_in_container = f"claude-code {claude_args} --dangerously-skip-permissions /home/coder/workspace/{script_filename}"
+        cmd_in_container = f"claude-code {claude_args} --dangerously-skip-permissions {target_path}"
     
     # Build the docker run command
     docker_cmd = [
