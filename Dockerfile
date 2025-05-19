@@ -83,7 +83,6 @@ RUN mkdir -p ${HOME}/workspace && \
 COPY --chown=coder:coder docker_configs/dot_bashrc ${HOME}/.bashrc
 
 # Copy Claude Code scripts
-COPY --chown=coder:coder docker_configs/setup_mcp_tool.py /opt/claude-code/
 COPY --chown=coder:coder docker_configs/claude_launcher.py /opt/claude-code/
 
 # Make scripts executable

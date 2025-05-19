@@ -62,7 +62,6 @@ The repository contains:
 
 - `docker_configs/`: Configuration files for the Docker environment
   - `dot_bashrc`: Bash configuration for the container
-  - `setup_mcp_tool.py`: Script to set up MCP tools in the container
 - `specs/`: Specification documents
   - `how_we_do_dockerfiles.md`: Docker best practices documentation
 - `Dockerfile`: Defines the Claude Code Docker environment
