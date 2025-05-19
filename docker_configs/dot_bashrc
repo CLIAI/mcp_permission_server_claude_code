@@ -36,21 +36,27 @@ export CLAUDE_CODE_WORKSPACE="${HOME}/workspace"
 # Create workspace directory if it doesn't exist
 mkdir -p ${CLAUDE_CODE_WORKSPACE}
 
-# Function to run Claude with mounted script
+# Function to run Claude with mounted script using the launcher
 run_claude_script() {
     if [ -z "$1" ]; then
-        echo "Usage: run_claude_script <script_path> [prompt]"
+        echo "Usage: run_claude_script <script_path> [prompt] [--debug] [--add-mcp]"
         return 1
     fi
     
-    PROMPT=${2:-"write and compile and run helloworld in c++"}
+    SCRIPT_PATH="$1"
+    shift
     
-    # Run Claude with the specified script and prompt
-    claude --dangerously-skip-permissions --print "$PROMPT" "$1"
+    # Convert all arguments to a single command
+    CMD="python /opt/claude-code/claude_launcher.py $SCRIPT_PATH $@"
+    
+    # Execute the command
+    echo "$ $CMD"
+    $CMD
+    return $?
 }
 
 # Alias for the function
 alias ccs='run_claude_script'
 
 echo "Claude Permissions MCP Testing Environment initialized"
-echo "Use 'ccs <script_path> [prompt]' to run a script with Claude"
+echo "Use 'ccs <script_path> [prompt] [--debug] [--add-mcp]' to run a script with Claude"

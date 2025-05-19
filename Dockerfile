@@ -82,8 +82,12 @@ RUN mkdir -p ${HOME}/workspace && \
 # Copy dot_bashrc from host to container
 COPY --chown=coder:coder docker_configs/dot_bashrc ${HOME}/.bashrc
 
-# Copy MCP tool setup script
+# Copy Claude Code scripts
 COPY --chown=coder:coder docker_configs/setup_mcp_tool.py /opt/claude-code/
+COPY --chown=coder:coder docker_configs/claude_launcher.py /opt/claude-code/
+
+# Make scripts executable
+RUN chmod +x /opt/claude-code/claude_launcher.py
 
 # Set entrypoint and default command
 ENTRYPOINT ["/bin/bash", "-c"]

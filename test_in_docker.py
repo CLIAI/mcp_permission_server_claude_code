@@ -130,24 +130,30 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
     # Safely escape the prompt for shell
     escaped_prompt = prompt.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
     
-    if skip_tool_setup:
-        # Skip tool setup and just run Claude with the script
-        cmd_in_container = f'claude {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
-    elif tool_name or server_name != 'mcp_permission_server':
-        # If custom tool or server name is specified, use the setup script
-        tool_args = []
+    # Build launcher args
+    launcher_args = []
+    
+    # Add debug flag if needed
+    if debug:
+        launcher_args.append("--debug")
+    
+    # Add tool args if needed 
+    if tool_name or server_name != 'mcp_permission_server':
+        launcher_args.append("--add-mcp")
         if tool_name:
-            tool_args.extend(["--tool-name", tool_name])
+            launcher_args.append(f"--tool-name {tool_name}")
         if server_name:
-            tool_args.extend(["--server-name", server_name])
+            launcher_args.append(f"--server-name {server_name}")
+    
+    # Add claude args if provided
+    if claude_args:
+        launcher_args.append(f"--claude-args '{claude_args}'")
         
-        setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)} --debug"
-        full_tool_name = f"{server_name}__{tool_name or Path(script_file).stem.lower().replace(' ', '_')}"
-        run_cmd = f'claude {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name} --print "{escaped_prompt}"'
-        cmd_in_container = f"{setup_cmd} && {run_cmd}"
-    else:
-        # Just run the script with Claude
-        cmd_in_container = f'claude {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
+    # Build the full command with launcher script, args, script path and prompt
+    cmd_in_container = (
+        f"python /opt/claude-code/claude_launcher.py {' '.join(launcher_args)} "
+        f"{target_path} \"{escaped_prompt}\""
+    )
     
     # Check if the Docker image exists
     check_image_cmd = ["docker", "image", "inspect", "claude-code-permissionsmcp-testing"]
