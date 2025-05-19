@@ -71,6 +71,44 @@ class Logger:
         self._log("SUCCESS", message)
 
 
+def run_command(cmd, logger, cwd=None):
+    """
+    Execute a shell command, print it prefixed with '$', and stream
+    both stdout and stderr to the current terminal in real-time.
+    Returns the subprocess return code.
+    """
+    logger.info(f"$ {' '.join(cmd)}")
+    process = subprocess.Popen(
+        cmd,
+        cwd=cwd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        bufsize=1,         # line-buffered
+        universal_newlines=True
+    )
+
+    # Stream output live
+    while True:
+        out_line = process.stdout.readline()
+        err_line = process.stderr.readline()
+
+        if out_line:
+            print(out_line, end="")
+        if err_line:
+            logger.error(err_line.rstrip())
+
+        if process.poll() is not None:
+            # flush remaining
+            for line in process.stdout:
+                print(line, end="")
+            for line in process.stderr:
+                logger.error(line.rstrip())
+            break
+
+    return process.returncode
+
+
 def parse_args():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(description="Claude CLI Launcher with verbose debugging")
@@ -182,45 +220,67 @@ def add_mcp_tool(script_path, tool_name, server_name, logger):
 def run_claude(script_path, prompt, add_mcp, tool_name, server_name, logger, 
                claude_path="claude", claude_args=""):
     """Run Claude with the specified script and prompt."""
-    # Construct the command
+    # Determine tool name and full MCP identifier
+    if not tool_name:
+        derived_tool_name = Path(script_path).stem.lower().replace(' ', '_')
+    else:
+        derived_tool_name = tool_name
+    full_tool_name = f"{server_name}__{derived_tool_name}"
+
+    #
+    # 1. When requested, register the script as MCP tool
+    #
     if add_mcp:
-        # If we're using it as an MCP tool
-        if not tool_name:
-            derived_tool_name = Path(script_path).stem.lower().replace(' ', '_')
-        else:
-            derived_tool_name = tool_name
-            
-        full_tool_name = f"{server_name}__{derived_tool_name}"
+        add_cmd = [
+            claude_path, "mcp", "add",
+            "--transport", "stdio",
+            full_tool_name,
+            script_path,
+        ]
+        if run_command(add_cmd, logger) != 0:
+            logger.error("Failed to add MCP tool")
+            return 1
+
+        #
+        # 2. Show MCP tool list to verify registration
+        #
+        list_cmd = [claude_path, "mcp", "list"]
+        if run_command(list_cmd, logger) != 0:
+            logger.error("Failed to list MCP tools")
+            return 1
+
+    #
+    # 3. Build the final Claude invocation
+    #
+    if add_mcp:
         cmd = [
-            claude_path, 
-            "--dangerously-skip-permissions", 
+            claude_path,
+            "--dangerously-skip-permissions",
             "--prompt-permission-tool", full_tool_name,
-            "--print", prompt
+            "--print", prompt,
         ]
     else:
-        # If we're just running Claude on the script directly
         cmd = [
             claude_path,
             "--dangerously-skip-permissions",
             "--print", prompt,
-            script_path
+            script_path,
         ]
-    
-    # Add any additional Claude args
+
+    # Append extra CLI args if any
     if claude_args:
         cmd.extend(claude_args.split())
-    
-    # Log the command we're about to run
-    logger.debug(f"Running command: {' '.join(cmd)}")
-    logger.info(f"Executing Claude with {len(prompt)} character prompt")
-    
-    # Run the command and capture output in real-time
+
+    logger.info(f"Executing Claude with {len(prompt)}-character prompt")
+    logger.debug(f"Final command: {' '.join(cmd)}")
+
+    # Run and stream output
     process = subprocess.Popen(
-        cmd, 
-        stdout=subprocess.PIPE, 
+        cmd,
+        stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
         text=True,
-        bufsize=1,  # Line buffered
+        bufsize=1,  # line buffered
         universal_newlines=True
     )
     
