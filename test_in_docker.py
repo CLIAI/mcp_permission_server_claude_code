@@ -173,8 +173,13 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         "-e", "ANTHROPIC_API_KEY",
     ]
     
-    # Always run in interactive mode to ensure we get terminal output
-    docker_cmd.extend(["-it"])
+    # Try to detect if we're in a TTY
+    if sys.stdin.isatty() and sys.stdout.isatty():
+        docker_cmd.extend(["-it"])
+    else:
+        # If not in a TTY, use -i without -t to avoid TTY error
+        docker_cmd.extend(["-i"])
+        print("Warning: Not running in a TTY, some output may be buffered")
     
     docker_cmd.extend(["claude-code-permissionsmcp-testing", "/bin/bash", "-c", cmd_in_container])
     
@@ -183,9 +188,18 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
     
     try:
         print(f"$ {' '.join(docker_cmd)}")
+        # Use a new list for the command without TTY flags
+        docker_cmd_no_tty = docker_cmd.copy()
+        # Find and remove -it or -i flags (they could be separate items or combined)
+        for i, arg in enumerate(docker_cmd_no_tty):
+            if arg in ["-it", "-i", "-t"]:
+                docker_cmd_no_tty[i] = None
+        # Remove None values from the list
+        docker_cmd_no_tty = [arg for arg in docker_cmd_no_tty if arg is not None]
+        
         # Use subprocess.Popen to ensure we get real-time output
         process = subprocess.Popen(
-            docker_cmd,
+            docker_cmd_no_tty,
             bufsize=0,  # Unbuffered output
             universal_newlines=True,  # Text mode
             stdout=sys.stdout,  # Direct to stdout
