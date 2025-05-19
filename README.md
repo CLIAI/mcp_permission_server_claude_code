@@ -24,6 +24,9 @@ The repository now includes a fully configured Docker environment for running Cl
 # Set your Anthropic API key
 export ANTHROPIC_API_KEY=your_api_key_here
 
+# Example: Run a permission server and prompt in one call
+make ; ./test_in_docker.py --time-limit 180 --debug mcp_permission_server_allow_always_fastmcp 'write hello world program in c++ , compile and execute'
+
 # Build the Docker image
 make build
 
