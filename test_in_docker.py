@@ -131,8 +131,8 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
     escaped_prompt = prompt.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
     
     if skip_tool_setup:
-        # Skip tool setup and just run Claude with the script
-        cmd_in_container = f'claude {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
+        # Skip tool setup and just run Claude Code with the script
+        cmd_in_container = f'claude-code {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
     elif tool_name or server_name != 'mcp_permission_server':
         # If custom tool or server name is specified, use the setup script
         tool_args = []
@@ -143,11 +143,11 @@ def run_in_docker(script_file, prompt='write and compile and run helloworld in c
         
         setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)} --debug"
         full_tool_name = f"{server_name}__{tool_name or Path(script_file).stem.lower().replace(' ', '_')}"
-        run_cmd = f'claude {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name} --print "{escaped_prompt}"'
+        run_cmd = f'claude-code {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name} --print "{escaped_prompt}"'
         cmd_in_container = f"{setup_cmd} && {run_cmd}"
     else:
-        # Just run the script with Claude
-        cmd_in_container = f'claude {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
+        # Just run the script with Claude Code
+        cmd_in_container = f'claude-code {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
     
     # Check if the Docker image exists
     check_image_cmd = ["docker", "image", "inspect", "claude-code-permissionsmcp-testing"]

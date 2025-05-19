@@ -69,10 +69,10 @@ RUN mkdir -p ${HOME}/.npm-global && \
 # Install uv package manager for Python
 RUN curl -sSf https://astral.sh/uv/install.sh | sh
 
-# Install Claude CLI globally with npm
+# Install Claude Code CLI globally with npm
 # This step is done late in the build process to utilize Docker caching
-# If Claude CLI package updates, only this layer and subsequent ones will rebuild
-RUN npm install -g @anthropic-ai/claude
+# If Claude Code CLI package updates, only this layer and subsequent ones will rebuild
+RUN npm install -g @anthropic-ai/claude-code
 
 # Create workspace and MCP tools directories
 RUN mkdir -p ${HOME}/workspace && \
