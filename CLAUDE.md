@@ -37,8 +37,10 @@ The repository provides a Docker environment for isolated testing of Claude Code
 
 3. **Test a Script**: 
    ```bash
-   ./test_in_docker.py <script_path> [options]
+   ./test_in_docker.py <script_path> [prompt] [options]
    ```
+
+   The script accepts an optional prompt that will be passed to Claude Code. If not provided, it defaults to "write and compile and run helloworld in c++".
 
 ### Direct Execution
 
@@ -92,11 +94,17 @@ make build
 # Run interactive container
 make run
 
-# Test a script in Docker
+# Test a script in Docker with default prompt
 ./test_in_docker.py <script_path>
+
+# Test with a custom prompt
+./test_in_docker.py <script_path> "create a flask web server"
 
 # Test with a custom tool name
 ./test_in_docker.py <script_path> --tool-name custom_tool
+
+# Test with custom prompt and tool name
+./test_in_docker.py <script_path> "implement a sorting algorithm" --tool-name custom_tool
 
 # Run a script directly (without Docker)
 ./test_in_docker.py <script_path> --run-directly
