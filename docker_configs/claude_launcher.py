@@ -56,7 +56,7 @@ class Logger:
         lines = message.split('\n')
         for line in lines:
             if line.strip():  # Skip empty lines
-                print(f"{color}{level}:{reset} {line}")
+                print(f"{color}{level}:{reset} {line}", flush=True)
     
     def info(self, message):
         """Log an informational message."""
