@@ -4,10 +4,20 @@ Script to run a file inside the Claude Code Docker container.
 This script mounts a single file into the container and runs it with Claude Code.
 
 Usage:
-    python test_in_docker.py script_file [--tool-name NAME] [--server-name NAME] [--debug] [--skip-build]
+    python test_in_docker.py script_file [prompt] [options]
 
-Example:
+Examples:
+    # Run with default prompt ("write and compile and run helloworld in c++")
+    python test_in_docker.py my_mcp_server.py
+
+    # Run with custom prompt
+    python test_in_docker.py my_mcp_server.py "create a flask web server"
+
+    # Run with custom tool name
     python test_in_docker.py my_mcp_server.py --tool-name custom_tool
+
+    # Run with custom prompt and tool name
+    python test_in_docker.py my_mcp_server.py "implement bubble sort" --tool-name custom_tool
 """
 
 import argparse
@@ -20,6 +30,8 @@ from pathlib import Path
 def parse_args():
     parser = argparse.ArgumentParser(description='Run a script in the Claude Code Docker container')
     parser.add_argument('script_file', help='Script file or directory to run in the container')
+    parser.add_argument('prompt', nargs='?', default='write and compile and run helloworld in c++',
+                        help='Prompt to send to Claude Code (default: "write and compile and run helloworld in c++")')
     parser.add_argument('--tool-name', help='Custom name for the MCP tool (default: derived from filename)')
     parser.add_argument('--server-name', default='mcp_permission_server', 
                         help='Server name for the MCP tool (default: mcp_permission_server)')
@@ -71,7 +83,8 @@ def build_docker_image(debug=False, show_logs=False):
         print(f"Error building Docker image: {e}")
         return False
 
-def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_server', 
+def run_in_docker(script_file, prompt='write and compile and run helloworld in c++', 
+                  tool_name=None, server_name='mcp_permission_server', 
                   debug=False, interactive=False, claude_args='', skip_tool_setup=False):
     """Run the script in the Docker container."""
     script_path = os.path.abspath(script_file)
@@ -121,9 +134,12 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         print(f"Using target path in container: {target_path}")
     
     # Construct the command to run inside Docker
+    # Safely escape the prompt for shell
+    escaped_prompt = prompt.replace('"', '\\"').replace('$', '\\$').replace('`', '\\`')
+    
     if skip_tool_setup:
         # Skip tool setup and just run Claude Code with the script
-        cmd_in_container = f"claude-code {claude_args} --dangerously-skip-permissions {target_path}"
+        cmd_in_container = f'claude-code {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
     elif tool_name or server_name != 'mcp_permission_server':
         # If custom tool or server name is specified, use the setup script
         tool_args = []
@@ -134,11 +150,11 @@ def run_in_docker(script_file, tool_name=None, server_name='mcp_permission_serve
         
         setup_cmd = f"python /opt/claude-code/setup_mcp_tool.py {target_path} {' '.join(tool_args)} --debug"
         full_tool_name = f"{server_name}__{tool_name or Path(script_file).stem.lower().replace(' ', '_')}"
-        run_cmd = f"claude-code {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name}"
+        run_cmd = f'claude-code {claude_args} --dangerously-skip-permissions --prompt-permission-tool={full_tool_name} --print "{escaped_prompt}"'
         cmd_in_container = f"{setup_cmd} && {run_cmd}"
     else:
         # Just run the script with Claude Code
-        cmd_in_container = f"claude-code {claude_args} --dangerously-skip-permissions {target_path}"
+        cmd_in_container = f'claude-code {claude_args} --dangerously-skip-permissions --print "{escaped_prompt}" {target_path}'
     
     # Check if the Docker image exists
     check_image_cmd = ["docker", "image", "inspect", "claude-code-container"]
@@ -233,7 +249,8 @@ def main():
             return 1
     
     if not run_in_docker(
-        args.script_file, 
+        args.script_file,
+        args.prompt,
         args.tool_name, 
         args.server_name, 
         args.debug,
