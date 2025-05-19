@@ -2,6 +2,8 @@
 
 **WORK IN PROGRESS**: This repository contains experimental code for implementing custom security policies for Claude Code MCP (Model Control Panel) tools, along with a Docker environment for testing and development.
 
+💡 Related repo/effort: for running Claude Code with `--dangerously-skip-permissions` in isolated (without internet except Claude servers) docker container: <https://github.com/CLIAI/isolated-docker-claude-code>
+
 ## Purpose
 
 This project aims to:
