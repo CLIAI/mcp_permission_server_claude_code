@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# .bashrc for the Claude Code docker environment
+
+# If not running interactively, don't do anything
+[[ $- != *i* ]] && return
+
+# Colors for prompt
+GREEN="\[\033[01;32m\]"
+BLUE="\[\033[01;34m\]"
+YELLOW="\[\033[01;33m\]"
+RESET="\[\033[00m\]"
+
+# Set prompt
+PS1="${GREEN}\u@docker${RESET}:${BLUE}\w${RESET}\$ "
+
+# Add local bins to PATH
+export PATH="$HOME/.cargo/bin:$HOME/.local/bin:$PATH"
+export PATH="$HOME/.npm-global/bin:$PATH"
+export PATH="$HOME/node_modules/.bin:$PATH"
+
+# Node.js and npm settings
+export npm_config_prefix="$HOME/.npm-global"
+
+# Rust settings
+source "$HOME/.cargo/env" 2>/dev/null || true
+
+# Aliases
+alias ls='ls --color=auto'
+alias ll='ls -la'
+alias grep='grep --color=auto'
+
+# Claude Code specific settings
+# Set up default Claude Code workspace
+export CLAUDE_CODE_WORKSPACE="${HOME}/workspace"
+# Create workspace directory if it doesn't exist
+mkdir -p ${CLAUDE_CODE_WORKSPACE}
+
+# Function to run Claude Code with mounted script
+run_claude_code_script() {
+    if [ -z "$1" ]; then
+        echo "Usage: run_claude_code_script <script_path>"
+        return 1
+    fi
+    
+    # Run Claude Code with the specified script
+    claude-code --dangerously-skip-permissions "$1"
+}
+
+# Alias for the function
+alias ccs='run_claude_code_script'
+
+echo "Claude Code Docker Environment initialized"
+echo "Use 'ccs <script_path>' to run a script with Claude Code"
