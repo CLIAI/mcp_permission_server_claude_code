@@ -1,4 +1,8 @@
 #!/usr/bin/env python3
+import sys
+
+print(f"INFO: Starting {sys.argv[0]} with arguments: {' '.join(sys.argv)}", file=sys.stderr)
+
 """
 Claude Launcher Script
 
